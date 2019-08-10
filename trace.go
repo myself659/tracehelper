@@ -40,7 +40,10 @@ func WithSwitch(name string, start bool) (SwitchFunc, SwitchFunc) {
 		}
 		f := newTraceFile(name)
 		if false == start {
-			<-switchCh
+			_, ok := <-switchCh
+			if false == ok {
+				return
+			}
 		}
 		err := trace.Start(f)
 		if nil != err {

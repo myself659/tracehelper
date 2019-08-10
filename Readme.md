@@ -7,8 +7,7 @@ Support a variety of different trace modes:
 - http
 - signal 
 - context scope 
-- cancel 
-- function control trace start and stop 
+- switch control 
 
 # example  
 
@@ -24,8 +23,9 @@ import (
 )
 
 func httpreq(method string, url string) {
-	_, tracecancel := tracehelper.WithCancel("baidu")
-	defer tracecancel()
+	_, stoptrace := tracehelper.WithSwitch("ipds", false)
+	defer stoptrace()
+	//starttrace()
 	req, _ := http.NewRequest(method, url, nil)
 
 	_, err := http.DefaultTransport.RoundTrip(req)
@@ -36,9 +36,10 @@ func httpreq(method string, url string) {
 
 func main() {
 
-	go httpreq("GET", "https://www.google.com")
+	go httpreq("GET", "http://blog.ipds.top/")
 
 	<-time.After(30 * time.Second)
 }
+
 
 ```

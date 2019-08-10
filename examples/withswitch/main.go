@@ -9,8 +9,9 @@ import (
 )
 
 func httpreq(method string, url string) {
-	_, stoptrace := tracehelper.WithSwitch("ipds", true)
+	_, stoptrace := tracehelper.WithSwitch("ipds", false)
 	defer stoptrace()
+	//starttrace()
 	req, _ := http.NewRequest(method, url, nil)
 
 	_, err := http.DefaultTransport.RoundTrip(req)
