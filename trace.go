@@ -27,38 +27,50 @@ func init() {
 			seq++
 		}
 	}()
+}
 
+//WithSwitch start trace by function call, must with a StopTrace call later
+func WithSwitch(name string, start bool) (SwitchFunc, SwitchFunc) {
+
+	switchCh := make(chan struct{})
 	go func() {
-		for {
-			name := <-startCh
-			if "" == name {
-				name = "ChanControl"
-			}
-			f := newTraceFile(name)
 
-			err := trace.Start(f)
-			if nil != err {
-				delTraceFile(f)
-				return
-			}
-			<-stopCh
-			trace.Stop()
-
-			runTraceUI(f)
+		if "" == name {
+			name = "WithSwitch"
 		}
+		f := newTraceFile(name)
+		if false == start {
+			<-switchCh
+		}
+		err := trace.Start(f)
+		if nil != err {
+			delTraceFile(f)
+			return
+		}
+		<-switchCh
+		trace.Stop()
+
+		runTraceUI(f)
+
 	}()
+	stopswitch := func() {
+		close(switchCh)
+	}
+
+	startswitch := func() {
+		if start == false {
+			var empty struct{}
+			switchCh <- empty
+			start = true
+		}
+	}
+
+	return startswitch, stopswitch
+
 }
 
-//StartTrace start trace by function call, must with a StopTrace call later
-func StartTrace(name string) {
-	startCh <- name
-}
-
-//StopTrace stop trace by function call,  along with a StartTrace call
-func StopTrace() {
-	var empty struct{}
-	stopCh <- empty
-}
+//SwitchFunc stop trace by function call,  along with a StartTrace call
+type SwitchFunc func()
 
 //WithHTTP trigger trace by http request
 func WithHTTP(port string) {
@@ -114,29 +126,6 @@ func WithContext(ctx context.Context, name string) {
 
 		runTraceUI(f)
 	}()
-}
-
-//WithCancel attach the trace with a cancel context
-func WithCancel(name string) (tracectx context.Context, tracecancel context.CancelFunc) {
-	if "" == name {
-		name = "WithCancel"
-	}
-
-	tracectx, tracecancel = context.WithCancel(context.Background())
-	f := newTraceFile(name)
-	go func() {
-		err := trace.Start(f)
-		if nil != err {
-			delTraceFile(f)
-			return
-		}
-		<-tracectx.Done()
-		trace.Stop()
-
-		runTraceUI(f)
-	}()
-	return tracectx, tracecancel
-
 }
 
 func delTraceFile(f *os.File) {

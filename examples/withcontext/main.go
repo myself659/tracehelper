@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
-
+	"math/rand"
 	"github.com/myself659/tracehelper"
 )
 
@@ -30,6 +30,6 @@ func main() {
 			fmt.Println("g2 ", ctx.Err()) // prints "g2 context deadline exceeded"
 		}
 	}()
-	//d := time.Duration(rand.Intn(12))
-	<-time.After(10 * time.Second)
+	d := time.Duration(rand.Intn(12))
+	<-time.After(d * time.Second)
 }
