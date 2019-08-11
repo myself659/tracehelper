@@ -9,6 +9,10 @@ Support a variety of different trace modes:
 - context scope 
 - switch control 
 
+# api 
+
+[Refer to godoc](https://godoc.org/github.com/myself659/tracehelper)
+
 # example  
 
 ```

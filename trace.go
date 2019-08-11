@@ -2,9 +2,12 @@ package tracehelper
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	_ "net/http/pprof" //init http server for trace
+
+	"sync"
 
 	"os"
 	"os/exec"
@@ -16,8 +19,6 @@ import (
 )
 
 var seqCh = make(chan uint64)
-var startCh = make(chan string)
-var stopCh = make(chan struct{})
 
 func init() {
 	go func() {
@@ -29,51 +30,100 @@ func init() {
 	}()
 }
 
-//WithSwitch start trace by function call, must with a StopTrace call later
+//WithSwitch help to start or stop trace by calling SwitchFunc
 func WithSwitch(name string, start bool) (SwitchFunc, SwitchFunc) {
 
 	switchCh := make(chan struct{})
-	go func() {
-
-		if "" == name {
-			name = "WithSwitch"
+	if "" == name {
+		name = "WithSwitch"
+	}
+	var f *os.File
+	if true == start {
+		f = newTraceFile(name)
+		err := trace.Start(f)
+		if nil != err {
+			log.Printf("Cannot trace for %s: %v", f.Name(), err)
+			delTraceFile(f)
+			emptySwitch := func() {}
+			return emptySwitch, emptySwitch
 		}
-		f := newTraceFile(name)
+	}
+
+	go func() {
 		if false == start {
+			f = newTraceFile(name)
 			_, ok := <-switchCh
 			if false == ok {
+				delTraceFile(f)
+				return
+			}
+			err := trace.Start(f)
+			if nil != err {
+				log.Printf("Cannot trace for %s: %v", f.Name(), err)
+				delTraceFile(f)
 				return
 			}
 		}
-		err := trace.Start(f)
-		if nil != err {
-			delTraceFile(f)
-			return
-		}
+
 		<-switchCh
 		trace.Stop()
-
 		runTraceUI(f)
 
 	}()
+
 	stopswitch := func() {
 		close(switchCh)
 	}
+	var startswitch SwitchFunc
 
-	startswitch := func() {
-		if start == false {
-			var empty struct{}
-			switchCh <- empty
-			start = true
+	if start == false {
+		var doOnce sync.Once
+		startswitch = func() {
+			doOnce.Do(func() {
+				var empty struct{}
+				switchCh <- empty
+			})
 		}
+	} else {
+		startswitch = func() {}
 	}
 
 	return startswitch, stopswitch
-
 }
 
-//SwitchFunc stop trace by function call,  along with a StartTrace call
+//SwitchFunc start or stop trace function type
 type SwitchFunc func()
+
+//FilterFunc filter
+type FilterFunc func() bool
+
+//WithFilter help trace with a  filter function
+func WithFilter(name string, filter FilterFunc) SwitchFunc {
+
+	if true == filter() {
+		switchCh := make(chan struct{})
+		if "" == name {
+			name = "WithFilter"
+		}
+		f := newTraceFile(name)
+		err := trace.Start(f)
+		if nil != err {
+			log.Printf("Cannot trace for %s: %v", f.Name(), err)
+			delTraceFile(f)
+			emptySwitch := func() {}
+			return emptySwitch
+		}
+		go func() {
+			<-switchCh
+			trace.Stop()
+			runTraceUI(f)
+		}()
+
+		return func() { close(switchCh) }
+	}
+
+	return func() {}
+}
 
 //WithHTTP trigger trace by http request
 func WithHTTP(port string) {
@@ -83,20 +133,19 @@ func WithHTTP(port string) {
 	}()
 }
 
-//WithSignal trigger trace by send signal
+//WithSignal trigger trace by signal
 func WithSignal(duration time.Duration) {
 	go func() {
-
+		name := "WithSignal"
+		sigch := make(chan os.Signal, 1)
+		signal.Notify(sigch, syscall.SIGQUIT) // todo: support windows
+		fmt.Println("Send SIGQUIT (CTRL+\\) to the process to capture...")
 		for {
-			sigch := make(chan os.Signal, 1)
-			signal.Notify(sigch, syscall.SIGQUIT)
 			<-sigch
-			name := "WithSignal"
-
 			f := newTraceFile(name)
-
 			err := trace.Start(f)
 			if nil != err {
+				log.Printf("Cannot trace for %s: %v", f.Name(), err)
 				delTraceFile(f)
 				return
 			}
@@ -111,7 +160,7 @@ func WithSignal(duration time.Duration) {
 	}()
 }
 
-//WithContext trace with scope limit by context
+//WithContext help trace with scope limit by context
 func WithContext(ctx context.Context, name string) {
 	if "" == name {
 		name = "WithContext"
@@ -121,6 +170,7 @@ func WithContext(ctx context.Context, name string) {
 	go func() {
 		err := trace.Start(f)
 		if nil != err {
+			log.Printf("Cannot trace for %s: %v", f.Name(), err)
 			delTraceFile(f)
 			return
 		}
