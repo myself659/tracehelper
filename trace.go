@@ -31,9 +31,13 @@ func init() {
 }
 
 // WithSwitch help to start or stop trace by calling SwitchFunc
+//
 // name: trace name
+//
 // start: when start is true, start stace at once, when start is false, must call startswitch to start trace
+//
 // startswitch: function for startting trace
+//
 // stopswitch:  function for stopping trace
 func WithSwitch(name string, start bool) (startswitch SwitchFunc, stopswitch SwitchFunc) {
 
@@ -101,8 +105,11 @@ type SwitchFunc func()
 type FilterFunc func() bool
 
 // WithFilter help trace with a  filter function
+//
 // name: trace name
+//
 // filter: filter function
+//
 // stoptrace: function for stopping trace
 func WithFilter(name string, filter FilterFunc) (stoptrace SwitchFunc) {
 
