@@ -1,5 +1,7 @@
 # tracehelper 
 
+
+[![GoDoc](https://godoc.org/github.com/myself659/tracehelper?status.svg)](https://godoc.org/github.com/myself659/tracehelper)
 **make trace convenient for golang** 
 
 Support a variety of different trace modes:
@@ -7,9 +9,10 @@ Support a variety of different trace modes:
 - http
 - signal 
 - context scope 
-- switch control 
+- switch control
+- filter control 
 
-# api 
+# API
 
 [Refer to godoc](https://godoc.org/github.com/myself659/tracehelper)
 
@@ -27,9 +30,9 @@ import (
 )
 
 func httpreq(method string, url string) {
-	_, stoptrace := tracehelper.WithSwitch("ipds", false)
+	starttrace, stoptrace := tracehelper.WithSwitch("ipds", false)
 	defer stoptrace()
-	//starttrace()
+	starttrace()
 	req, _ := http.NewRequest(method, url, nil)
 
 	_, err := http.DefaultTransport.RoundTrip(req)
@@ -45,5 +48,5 @@ func main() {
 	<-time.After(30 * time.Second)
 }
 
-
 ```
+

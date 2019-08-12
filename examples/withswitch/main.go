@@ -12,7 +12,7 @@ func httpreq(method string, url string) {
 	starttrace, stoptrace := tracehelper.WithSwitch("ipds", false)
 	defer stoptrace()
 	starttrace()
-	//starttrace() //  call twice but do once
+	//starttrace() // even call twice but only do once
 	req, _ := http.NewRequest(method, url, nil)
 
 	_, err := http.DefaultTransport.RoundTrip(req)

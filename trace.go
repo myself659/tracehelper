@@ -30,8 +30,12 @@ func init() {
 	}()
 }
 
-//WithSwitch help to start or stop trace by calling SwitchFunc
-func WithSwitch(name string, start bool) (SwitchFunc, SwitchFunc) {
+// WithSwitch help to start or stop trace by calling SwitchFunc
+// name: trace name
+// start: when start is true, start stace at once, when start is false, must call startswitch to start trace
+// startswitch: function for startting trace
+// stopswitch:  function for stopping trace
+func WithSwitch(name string, start bool) (startswitch SwitchFunc, stopswitch SwitchFunc) {
 
 	switchCh := make(chan struct{})
 	if "" == name {
@@ -71,10 +75,9 @@ func WithSwitch(name string, start bool) (SwitchFunc, SwitchFunc) {
 
 	}()
 
-	stopswitch := func() {
+	stopswitch = func() {
 		close(switchCh)
 	}
-	var startswitch SwitchFunc
 
 	if start == false {
 		var doOnce sync.Once
@@ -94,11 +97,14 @@ func WithSwitch(name string, start bool) (SwitchFunc, SwitchFunc) {
 //SwitchFunc start or stop trace function type
 type SwitchFunc func()
 
-//FilterFunc filter
+//FilterFunc filter for trace
 type FilterFunc func() bool
 
-//WithFilter help trace with a  filter function
-func WithFilter(name string, filter FilterFunc) SwitchFunc {
+// WithFilter help trace with a  filter function
+// name: trace name
+// filter: filter function
+// stoptrace: function for stopping trace
+func WithFilter(name string, filter FilterFunc) (stoptrace SwitchFunc) {
 
 	if true == filter() {
 		switchCh := make(chan struct{})
@@ -110,16 +116,16 @@ func WithFilter(name string, filter FilterFunc) SwitchFunc {
 		if nil != err {
 			log.Printf("Cannot trace for %s: %v", f.Name(), err)
 			delTraceFile(f)
-			emptySwitch := func() {}
-			return emptySwitch
+			stoptrace = func() {}
+			return stoptrace
 		}
 		go func() {
 			<-switchCh
 			trace.Stop()
 			runTraceUI(f)
 		}()
-
-		return func() { close(switchCh) }
+		stoptrace = func() { close(switchCh) }
+		return stoptrace
 	}
 
 	return func() {}
